@@ -1,0 +1,237 @@
+---
+title: "K modas & K prototipos"
+author: "Brenda Georgina Tafoya Olvera"
+date: "24/4/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+### K modas ###
+El algoritmo k-modas (Zhexue., 1998), fue diseñado para agrupar conjuntos de datos categóricos, y tiene como objetivo obtener las k modas que representan al conjunto. 
+
+
+En k-modas se hacen 3 modificaciones a k-medias:
+
+*  Uso de **diferentes medidas de disimililitud** (dissimilarity). Sean X, Y dos objetos categóricos descritos por m atributos categóricos. La la medida de disimilitud entre X e Y puede definirse por las **discrepancias (missmatches) totales de los atributos categóricos de los objetos.** Cuanto menor es este número, más similares son los dos objetos. 
+
+    Formalmente, se escribe así,
+    $$d(X,Y)= \sum_{j=1}^{m}\delta (X_{j}, Y_{j})$$
+    donde,
+    $$ \delta (X_{j}, Y_{j}) = \begin{cases}
+    0 & \text{ if } x_{j} = y_{j} \\ 
+    1 & \text{ if } x_{j} \neq y_{j}
+    \end{cases} $$
+
+*  Está basado en las **frecuencias de los datos para actualizar las modas**. $d(X,Y)$ da igual importancia a cada categoría del atributo. Tomando en cuenta las
+frecuencias de las categorías en el conjunto de datos, se define la medida de disimilaridad,
+$$ d_{2}(X,Y)= \sum_{j=1}^{m}\frac{{n_{xj}}+{n_{yj}}}{{n_{xj}}{n_{yj}}}*\delta (X_{j}, Y_{j}) $$
+    Dónde, $nxj$ $nyj$ son el número de objetos en el conjunto de datos, que tienen las categorías xj y yj para el atributo j. A esta medida de disimilitud se le conoce como distancia Xi-cuadrada.
+
+
+*  Sustitución de k medias por **k modas para formar los centroides**. La *moda* es un vector de elementos $Q=[q_{1}, q_{2}, ..., q_{m}]\in \Omega$ que minimiza las diferencias (dissimilarities) entre el vector en sí y cada objeto de los datos. 
+$$D(X,Q)= \sum_{j=1}^{n}d (X_{j}, Q)$$ 
+   
+Similar al algoritmo k-medias, el objetivo de agrupar el conjunto X es encontrar
+un conjunto ${ Q_{1}, Q_{2}, ..., Q_{m} }$ que minimice la función de costo total
+
+
+### Algortimo ###
+
+ (1) Seleccionar k modas iniciales, una para cada grupo.
+ 
+ (2) Asignar cada objeto a la moda más cercana utilizando la distancia d. Actualizar la moda del grupo después de cada asignación.
+ 
+ (3) Después que todos los objetos han sido asignados a un grupo, volver a examinar la
+disimilaridad de los objetos con las modas actuales. Si un objeto es encontrado tal que su moda más cercana corresponde a otro grupo, asignar el objeto a su nueva moda y actualizar la moda de ambos grupos.
+
+ (4) Repetir el paso 3 hasta que no existan objetos cambiados de grupo
+
+
+*observaciones:* 
+
+* En el caso de k modas, la actualización de las modas se realiza en cada asignación de un objeto a su grupo, mientras que en k-medias es al final de cada iteración del algoritmo. 
+
+* El algoritmo k-modas al igual que el algoritmo k-medias produce soluciones óptimas locales, que dependen del conjunto de modas iniciales y el orden de los objetos en el conjunto de datos.
+
+
+### Implementación en R ###
+
+Pimero, es necesaria la instalación del paquete de [klaR](https://cran.r-project.org/web/packages/klaR/index.html)
+```{r, eval = FALSE, results='hide', message=FALSE }
+install.packages("klaR")
+```
+Usaremos la función de [kmodes](https://www.rdocumentation.org/packages/klaR/versions/0.6-15/topics/kmodes), que tiene la misma estructura que la función *kmeans*
+
+```{r, eval = FALSE}
+kmodes(data, modes, iter.max = 10, weighted = FALSE)
+```
+
+* **data**: A matrix or data frame of categorical data. Objects have to be in rows, variables in columns.
+* **modes**: Either the number of modes or a set of initial (distinct) cluster modes. If a number, a random set of (distinct) rows in data is chosen as the initial modes.
+* **iter.max**: The maximum number of iterations allowed.
+* **weighted**: Whether usual simple-matching distance between objects is used, or a weighted version of this distance (by the frequencies of the categories in data)
+
+#### Ejemplo ####
+
+Como ejemplo queremos clasificar distintos tipos de hongos, el dataset es *[Mushroom Classification Dataset](https://www.kaggle.com/uciml/mushroom-classification)*
+```{r, message=FALSE}
+library(klaR)
+library(ggplot2)
+library(dplyr)
+mushroomDf <- read.csv("C:/Users/ginat/Desktop/mushrooms.csv")
+str( mushroomDf )
+```
+```{r, results='hide'}
+#Quitamos las variables irrelevantes
+mushroomDf.nuevo <- subset(mushroomDf, select = -c(class, veil.type))
+str(mushroomDf.nuevo)
+```
+La variable de class indica si los hongos son comestibles o son venenosos (que es lo que queremos clasificar) y la variable de veil.type es constante para todas las observaciónes por lo tanto, no proporciona información adicional.
+```{r}
+#Creamos el modelo de k modas 
+set.seed(1)
+modelo.kmodes <- kmodes(mushroomDf.nuevo, 2, iter.max = 50, weighted = FALSE)
+nuevos.clusters <- mutate(mushroomDf.nuevo, cluster = as.factor(modelo.kmodes$cluster))
+head(nuevos.clusters)
+
+#Graficamos
+ggplot() + geom_point(data = nuevos.clusters,  mapping = aes(x = spore.print.color   , y = odor, color = cluster)) + geom_point(mapping = aes_string(x = modelo.kmodes$modes[, "spore.print.color"], 
+                                  y = modelo.kmodes$modes[, "odor"]),
+                                  color = "yellow", size = 5)
+
+#Comparamos la clasificación por k modes vs. clasificación real
+result.vs.real <- table(mushroomDf$class,modelo.kmodes$cluster)
+result.vs.real
+table(mushroomDf$class)
+```
+
+
+### K prototipos ###
+
+Este método es la integración de los métodos k medias y k modas, pues está construido para datasets con variables tanto categóricas como númericas.
+
+* El algoritmo k-prototipos es más útil porque los objetos encontrados con frecuencia en bases de datos del mundo real son objetos de tipo mixto.
+
+* La medida de **disimilitud** para este método es la siguiente:
+$$d_{3}(X,Y)=\sum_{j=1}^{p}(x_{j}-y_{j})^{2}+\lambda \sum_{j=p+1}^{m}\delta (X_{j}, Y_{j})$$
+   Dónde el primer sumando es la distancia Euclideana usada para variables numéricas y el segundo sumando es la medida de disimilitud usada para variables categóricas. El peso $\lambda$ se usa para evitar favorecer cualquier tipo de atributo. 
+* $\lambda$ también debe especificarse de antemano como el número de clústers k.
+   * Para valores mayores de λ, el impacto de las variables categóricas aumenta.
+   * Para λ = 0, el impacto de las variables categóricas desaparece y solo se toman en cuenta las variables numéricas (volvemos al método de k medias).
+   
+### Algoritmo ###
+
+El algoritmo itera de manera similar al algoritmo k-medias buscando minimizar la distancia whitin cluster a través de la media para variables numéricas y la moda para variables categóricas.
+
+ (1) Selección aleatoria de prototipos iniciales.
+ 
+ (2) Asignar cada observación a su prototipo más cercano de acuerdo con $d_{3}$
+ 
+ (3) Después de que todos los objetos se han asignado a un grupo, volver a medir la disimilitud de los objetos con los prototipos actuales. Si  encontramos un objeto tal que es más cercano a otro prototipo de clúster, actualizamos los prototipos de ambos clústeres.
+ (4) Repetir 3, hasta que ningún objeto cambie su clúster.
+
+
+### Implementación en R ###
+
+
+Pimero, es necesaria la instalación del paquete de [clustMixType](https://cran.r-project.org/web/packages/clustMixType/clustMixType.pdf)
+```{r, eval = FALSE, results='hide', message=FALSE }
+install.packages("clustMixType")
+```
+
+Usaremos la función de [kproto](https://www.rdocumentation.org/packages/clustMixType/versions/0.2-2/topics/kproto).
+
+```{r, eval = FALSE}
+kproto(x, k, lambda = NULL, iter.max = 100,
+  nstart = 1, na.rm = TRUE, keep.data = TRUE, verbose = TRUE, ...)
+```
+
+* **x**: Data frame with both numerics and factors.
+* **k**: Either the number of clusters, a vector specifying indices of initial prototypes, or a data frame of prototypes of the same columns as x.
+* **lambda** : Parameter > 0 to trade off between Euclidean distance of numeric variables and simple matching coefficient between categorical variables. Also a vector of variable specific factors is possible where the order must correspond to the order of the variables in the data. In this case all variables' distances will be multiplied by their corresponding lambda value.
+* **iter.max** : Maximum number of iterations if no convergence before.
+* nstart: If > 1 repetetive computations with random initializations are computed and the result with minimum tot.dist is returned.
+* na.rm: A logical value indicating whether NA values should be stripped before the computation proceeds.
+* keep.data: Logical whether original should be included in the returned object.
+* verbose: Logical whether information about the cluster procedure should be given. Caution: If verbose=FALSE, the reduction of the number of clusters is not mentioned.
+
+#### Ejemplo ####
+En este ejemplo usaremos el Pokemon with stats dataset para ilustrar el funcionamiento del método de k prototipos
+
+```{r}
+#Cargamos las librerías y los datos
+library(clustMixType)
+library(ggplot2)
+library(dplyr)
+pokemon <- read.csv("C:/Users/ginat/Desktop/Pokemon.csv")
+str((pokemon))
+```
+Podemos observar que las variables categóricas que tenemos son el nombre y el tipo de pokemon que existen y el resto son numéricas.
+
+En este caso no tenemos idea de cual es el valor óptimo para k entonces hacemos un *elbow plot* para darnos una idea
+
+```{r, results='hide'}
+# Buscamos el número óptimo de clústers
+wss<-vector()
+for (i in 2:15){ wss[i] <- sum(kproto(pokemon, i)$withinss)}
+par(mfrow=c(1,1))
+plot(1:15, wss, type="b", xlab="Número de Clusters",
+     ylab=" WSS (Within groups sum of squares)",
+     pch=20, cex=2)
+```
+Vemos que podemos probar con k = 4, 5,  y 7. Entonces creamos los modelos y escogeremos aquel tal que la WSS sea la mínima
+
+Creamos el modelo de k prototipos usando k = 4 
+```{r}
+modelo.kprot4 <- kproto(pokemon, 4, 10)
+nuevos.clust4 <- mutate(pokemon, cluster = as.factor(modelo.kprot4$cluster))
+head(nuevos.clust4)
+#Graficamos 
+ggplot() + geom_point(data = nuevos.clust4,  mapping = aes(x = Total   , y = HP, color = cluster))
+#WSS
+WSS4<-modelo.kprot4$tot.withinss
+WSS4
+```
+Creamos el modelo de k prototipos usando k = 5 
+```{r}
+modelo.kprot5 <- kproto(pokemon, 5, 10)
+nuevos.clust5 <- mutate(pokemon, cluster = as.factor(modelo.kprot5$cluster))
+head(nuevos.clust5)
+#Graficamos 
+ggplot() + geom_point(data = nuevos.clust5,  mapping = aes(x = Total   , y = HP, color = cluster))
+#WSS
+WSS5<-modelo.kprot5$tot.withinss
+WSS5
+
+```
+Creamos el modelo de k prototipos usando k = 6 
+```{r}
+modelo.kprot6<- kproto(pokemon, 6, 10)
+nuevos.clust6 <- mutate(pokemon, cluster = as.factor(modelo.kprot6$cluster))
+head(nuevos.clust6)
+#Graficamos 
+ggplot() + geom_point(data = nuevos.clust6,  mapping = aes(x = Total   , y = HP, color = cluster))
+#WSS
+WSS6<-modelo.kprot6$tot.withinss
+WSS6
+
+```
+Creamos el modelo de k prototipos usando k = 7
+```{r}
+modelo.kprot7 <- kproto(pokemon, 7, 10)
+nuevos.clust7 <- mutate(pokemon, cluster = as.factor(modelo.kprot7$cluster))
+head(nuevos.clust7)
+#Graficamos 
+ggplot() + geom_point(data = nuevos.clust7,  mapping = aes(x = Total   , y = HP, color = cluster))
+#WSS
+WSS7<-modelo.kprot7$tot.withinss
+WSS7
+```
+
+Gráficamente no es fácil distinguir cuál es el valor óptimo de k para este ejmplo, entonces veamos la WSS de cada modelo 
+```{r}
+WSS<-c(WSS4, WSS5, WSS6, WSS7)
+WSS
+min(WSS4, WSS5, WSS6, WSS7)
+```
+ Como podemos observar el modelo con **k = 7 ** tiene la menor Total Within Sum of Squares, por lo que es el mejor ajuste para estos datos. 
