@@ -1,5 +1,5 @@
 # seminariodatos
-Aquí está la compilación de mis proyectos trabajados durante mi seminario de introducción a la ciencia de datos. 
+Compilación de mis proyectos trabajados durante mi seminario de introducción a la ciencia de datos, todos están hechos en RStudio y presentados vía html producidos por RMarkdown.
 
 Contenido:
 - Algoritmo clustering k-modas y k-prototipos
